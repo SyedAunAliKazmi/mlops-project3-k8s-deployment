@@ -4,7 +4,6 @@ pipeline {
     environment {
         APP_NAME  = "iris-mlops-app"
         NAMESPACE = "mlops"
-        IMAGE_NAME = "iris-api:latest"
     }
 
     stages {
@@ -24,7 +23,7 @@ pipeline {
         stage('Cleanup Previous Run') {
             steps {
                 sh '''
-                    rm -f mlflow_local.db run_id.txt model_version.txt
+                    rm -f mlflow_pipeline.db run_id.txt model_version.txt
                     echo "[CLEANUP] Done"
                 '''
             }
@@ -54,36 +53,16 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Verify Docker Image Exists') {
             steps {
                 sh '''
-                    eval $(minikube docker-env)
-                    docker build -t iris-api:latest .
+                    IMAGE=$(sudo -u aun bash -c 'eval $(minikube docker-env) && docker images iris-api:latest --format "{{.Repository}}:{{.Tag}}"')
+                    echo "Image found: $IMAGE"
+                    if [ -z "$IMAGE" ]; then
+                        echo "ERROR: iris-api:latest not found in Minikube"
+                        exit 1
+                    fi
                 '''
-            }
-        }
-
-        stage('Terraform Init') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform init'
-                }
-            }
-        }
-
-        stage('Terraform Plan') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform plan'
-                }
-            }
-        }
-
-        stage('Terraform Apply - K8s Deploy') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform apply -auto-approve'
-                }
             }
         }
 
@@ -121,13 +100,20 @@ pipeline {
             steps {
                 sh '''
                     sleep 20
+                    echo "=== Health Check ==="
                     curl -s http://192.168.49.2:30007/health
+
+                    echo "=== Predict Setosa ==="
                     curl -s -X POST http://192.168.49.2:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
+
+                    echo "=== Predict Versicolor ==="
                     curl -s -X POST http://192.168.49.2:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [6.0, 2.9, 4.5, 1.5]}'
+
+                    echo "=== Predict Virginica ==="
                     curl -s -X POST http://192.168.49.2:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [6.7, 3.1, 5.6, 2.4]}'
