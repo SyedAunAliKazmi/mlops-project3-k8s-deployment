@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 import sys
 
-MLFLOW_URI = "http://localhost:5000"
+MLFLOW_URI = "sqlite:///mlflow_local.db"
 THRESHOLD  = 0.85
 
 def evaluate_model():
@@ -19,8 +19,7 @@ def evaluate_model():
     preds = model.predict(X_test)
     acc   = accuracy_score(y_test, preds)
     print(f"[EVALUATE] Accuracy: {acc}")
-    print(classification_report(y_test, preds,
-          target_names=iris.target_names))
+    print(classification_report(y_test, preds, target_names=iris.target_names))
     if acc < THRESHOLD:
         print(f"[EVALUATE] FAILED — below threshold {THRESHOLD}")
         sys.exit(1)

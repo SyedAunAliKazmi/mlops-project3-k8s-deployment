@@ -4,16 +4,18 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import pandas as pd
+import os
 
-MLFLOW_URI = "http://localhost:5000"
+# Use local SQLite DB — accessible by jenkins user from workspace
+MLFLOW_URI  = "sqlite:///mlflow_local.db"
 EXPERIMENT  = "k8s-iris-project3"
 
 def train_model():
     mlflow.set_tracking_uri(MLFLOW_URI)
     mlflow.set_experiment(EXPERIMENT)
     df = pd.read_csv('data/iris.csv')
-    X = df.drop('target', axis=1)
-    y = df['target']
+    X  = df.drop('target', axis=1)
+    y  = df['target']
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42)
     with mlflow.start_run() as run:

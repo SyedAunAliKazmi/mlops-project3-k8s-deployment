@@ -1,8 +1,8 @@
 import mlflow
 from mlflow.tracking import MlflowClient
 
-MLFLOW_URI  = "http://localhost:5000"
-MODEL_NAME  = "iris-k8s-classifier"
+MLFLOW_URI = "sqlite:///mlflow_local.db"
+MODEL_NAME = "iris-k8s-classifier"
 
 def register_model():
     mlflow.set_tracking_uri(MLFLOW_URI)
