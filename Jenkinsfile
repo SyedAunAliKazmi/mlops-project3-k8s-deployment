@@ -2,10 +2,11 @@ pipeline {
     agent any
 
     environment {
-        MLFLOW_TRACKING_URI = "http://localhost:5000"
+        MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
         APP_NAME            = "iris-mlops-app"
         NAMESPACE           = "mlops"
         IMAGE_NAME          = "iris-api:latest"
+        MINIKUBE_IP         = "192.168.49.2"
     }
 
     stages {
@@ -46,6 +47,18 @@ pipeline {
             }
         }
 
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    export DOCKER_TLS_VERIFY=$(minikube docker-env | grep DOCKER_TLS_VERIFY | cut -d= -f2 | tr -d '"')
+                    export DOCKER_HOST=$(minikube docker-env | grep DOCKER_HOST | cut -d= -f2 | tr -d '"')
+                    export DOCKER_CERT_PATH=$(minikube docker-env | grep DOCKER_CERT_PATH | cut -d= -f2 | tr -d '"')
+                    export MINIKUBE_ACTIVE_DOCKERD=$(minikube docker-env | grep MINIKUBE_ACTIVE_DOCKERD | cut -d= -f2 | tr -d '"')
+                    docker build -t iris-api:latest .
+                '''
+            }
+        }
+
         stage('Terraform Init') {
             steps {
                 dir('terraform') {
@@ -62,19 +75,20 @@ pipeline {
             }
         }
 
-        stage('Minikube Start + Build Docker Image') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform apply -target=null_resource.minikube_start -target=null_resource.build_image -auto-approve'
-                }
-            }
-        }
-
         stage('Terraform Apply - K8s Deploy') {
             steps {
                 dir('terraform') {
                     sh 'terraform apply -auto-approve'
                 }
+            }
+        }
+
+        stage('Rollout Restart') {
+            steps {
+                sh '''
+                    kubectl rollout restart deployment iris-mlops-app -n mlops
+                    kubectl rollout status deployment iris-mlops-app -n mlops
+                '''
             }
         }
 
@@ -94,7 +108,7 @@ pipeline {
                     kubectl get ingress -n mlops
 
                     echo "=== Pod Distribution ==="
-                    kubectl describe pods -n mlops | grep -E "Node:|Name:"
+                    kubectl describe pods -n mlops | grep -E "Node:|Name:|Status:"
                 '''
             }
         }
@@ -102,12 +116,17 @@ pipeline {
         stage('Test API Endpoint') {
             steps {
                 sh '''
-                    SERVICE_URL=$(minikube service iris-mlops-app-service -n mlops --url)
-                    echo "Service URL: $SERVICE_URL"
-                    curl -s $SERVICE_URL/health
-                    curl -s -X POST $SERVICE_URL/predict \
+                    sleep 15
+                    curl -s http://192.168.49.2:30007/health
+                    curl -s -X POST http://192.168.49.2:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
+                    curl -s -X POST http://192.168.49.2:30007/predict \
+                        -H "Content-Type: application/json" \
+                        -d '{"features": [6.0, 2.9, 4.5, 1.5]}'
+                    curl -s -X POST http://192.168.49.2:30007/predict \
+                        -H "Content-Type: application/json" \
+                        -d '{"features": [6.7, 3.1, 5.6, 2.4]}'
                 '''
             }
         }
@@ -115,10 +134,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ K8s Deployment Pipeline Successful — Syed Aun Ali Kazmi | SAP: 70149156"
+            echo "Pipeline Successful — Syed Aun Ali Kazmi | SAP: 70149156 | BSES-A | 6th Semester"
         }
         failure {
-            echo "❌ Pipeline Failed — Check console output"
+            echo "Pipeline Failed — Check console output"
         }
     }
 }
