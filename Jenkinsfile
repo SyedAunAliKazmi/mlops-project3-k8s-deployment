@@ -6,7 +6,6 @@ pipeline {
         APP_NAME            = "iris-mlops-app"
         NAMESPACE           = "mlops"
         IMAGE_NAME          = "iris-api:latest"
-        MINIKUBE_IP         = "192.168.49.2"
     }
 
     stages {
@@ -19,7 +18,7 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh 'pip install -r requirements.txt'
+                sh 'pip install --break-system-packages -r requirements.txt'
             }
         }
 
@@ -50,10 +49,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    export DOCKER_TLS_VERIFY=$(minikube docker-env | grep DOCKER_TLS_VERIFY | cut -d= -f2 | tr -d '"')
-                    export DOCKER_HOST=$(minikube docker-env | grep DOCKER_HOST | cut -d= -f2 | tr -d '"')
-                    export DOCKER_CERT_PATH=$(minikube docker-env | grep DOCKER_CERT_PATH | cut -d= -f2 | tr -d '"')
-                    export MINIKUBE_ACTIVE_DOCKERD=$(minikube docker-env | grep MINIKUBE_ACTIVE_DOCKERD | cut -d= -f2 | tr -d '"')
+                    eval $(minikube docker-env)
                     docker build -t iris-api:latest .
                 '''
             }
@@ -116,7 +112,7 @@ pipeline {
         stage('Test API Endpoint') {
             steps {
                 sh '''
-                    sleep 15
+                    sleep 20
                     curl -s http://192.168.49.2:30007/health
                     curl -s -X POST http://192.168.49.2:30007/predict \
                         -H "Content-Type: application/json" \
