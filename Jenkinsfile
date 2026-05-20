@@ -2,10 +2,9 @@ pipeline {
     agent any
 
     environment {
-        MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-        APP_NAME            = "iris-mlops-app"
-        NAMESPACE           = "mlops"
-        IMAGE_NAME          = "iris-api:latest"
+        APP_NAME  = "iris-mlops-app"
+        NAMESPACE = "mlops"
+        IMAGE_NAME = "iris-api:latest"
     }
 
     stages {
@@ -19,6 +18,15 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh 'pip install --break-system-packages -r requirements.txt'
+            }
+        }
+
+        stage('Cleanup Previous Run') {
+            steps {
+                sh '''
+                    rm -f mlflow_local.db run_id.txt model_version.txt
+                    echo "[CLEANUP] Done"
+                '''
             }
         }
 

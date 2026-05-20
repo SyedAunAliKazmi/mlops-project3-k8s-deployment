@@ -6,9 +6,8 @@ from sklearn.metrics import accuracy_score
 import pandas as pd
 import os
 
-# Use local SQLite DB — accessible by jenkins user from workspace
-MLFLOW_URI  = "sqlite:///mlflow_local.db"
-EXPERIMENT  = "k8s-iris-project3"
+MLFLOW_URI = "sqlite:///mlflow_pipeline.db"
+EXPERIMENT = "k8s-iris-project3"
 
 def train_model():
     mlflow.set_tracking_uri(MLFLOW_URI)

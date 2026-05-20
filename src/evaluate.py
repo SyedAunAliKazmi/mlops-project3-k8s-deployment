@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 import sys
 
-MLFLOW_URI = "sqlite:///mlflow_local.db"
+MLFLOW_URI = "sqlite:///mlflow_pipeline.db"
 THRESHOLD  = 0.85
 
 def evaluate_model():
