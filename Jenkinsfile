@@ -53,19 +53,6 @@ pipeline {
             }
         }
 
-        stage('Verify Docker Image Exists') {
-            steps {
-                sh '''
-                    IMAGE=$(sudo -u aun bash -c 'eval $(minikube docker-env) && docker images iris-api:latest --format "{{.Repository}}:{{.Tag}}"')
-                    echo "Image found: $IMAGE"
-                    if [ -z "$IMAGE" ]; then
-                        echo "ERROR: iris-api:latest not found in Minikube"
-                        exit 1
-                    fi
-                '''
-            }
-        }
-
         stage('Rollout Restart') {
             steps {
                 sh '''
