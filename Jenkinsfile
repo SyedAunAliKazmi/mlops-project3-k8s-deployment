@@ -2,8 +2,9 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME  = "iris-mlops-app"
-        NAMESPACE = "mlops"
+        MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
+        APP_NAME            = "iris-mlops-app"
+        NAMESPACE           = "mlops"
     }
 
     stages {
@@ -23,7 +24,7 @@ pipeline {
         stage('Cleanup Previous Run') {
             steps {
                 sh '''
-                    rm -f mlflow_pipeline.db run_id.txt model_version.txt
+                    rm -f run_id.txt model_version.txt
                     echo "[CLEANUP] Done"
                 '''
             }
@@ -37,32 +38,54 @@ pipeline {
 
         stage('Model Training - MLflow') {
             steps {
-                sh 'python3 src/train.py'
+                sh '''
+                    export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+                    python3 src/train.py
+                '''
             }
         }
 
         stage('Model Evaluation') {
             steps {
-                sh 'python3 src/evaluate.py'
+                sh '''
+                    export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+                    python3 src/evaluate.py
+                '''
             }
         }
 
         stage('Model Registration - MLflow Registry') {
             steps {
-                sh 'python3 src/register_model.py'
+                sh '''
+                    export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+                    python3 src/register_model.py
+                '''
             }
         }
 
-        stage('Rollout Restart') {
+        stage('ReplicaSet Deployment - Apply K8s Manifests') {
             steps {
                 sh '''
+                    echo "=== Applying Namespace ==="
+                    kubectl apply -f k8s/namespace.yaml
+
+                    echo "=== Applying Deployment (ReplicaSet x3) ==="
+                    kubectl apply -f k8s/deployment.yaml
+
+                    echo "=== Applying Service ==="
+                    kubectl apply -f k8s/service.yaml
+
+                    echo "=== Applying Nginx Ingress ==="
+                    kubectl apply -f k8s/ingress.yaml
+
+                    echo "=== Rolling Restart ==="
                     kubectl rollout restart deployment iris-mlops-app -n mlops
                     kubectl rollout status deployment iris-mlops-app -n mlops
                 '''
             }
         }
 
-        stage('Verify K8s Deployment') {
+        stage('Verify ReplicaSet Deployment') {
             steps {
                 sh '''
                     echo "=== Pods ==="
@@ -74,7 +97,7 @@ pipeline {
                     echo "=== Services ==="
                     kubectl get services -n mlops
 
-                    echo "=== Ingress ==="
+                    echo "=== Ingress (Nginx Load Balancer) ==="
                     kubectl get ingress -n mlops
 
                     echo "=== Pod Distribution ==="
@@ -83,27 +106,44 @@ pipeline {
             }
         }
 
-        stage('Test API Endpoint') {
+        stage('Test API - K8s Endpoint') {
             steps {
                 sh '''
                     sleep 20
+                    MINIKUBE_IP=$(minikube ip)
+
                     echo "=== Health Check ==="
-                    curl -s http://192.168.49.2:30007/health
+                    curl -s http://$MINIKUBE_IP:30007/health
 
                     echo "=== Predict Setosa ==="
-                    curl -s -X POST http://192.168.49.2:30007/predict \
+                    curl -s -X POST http://$MINIKUBE_IP:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
 
                     echo "=== Predict Versicolor ==="
-                    curl -s -X POST http://192.168.49.2:30007/predict \
+                    curl -s -X POST http://$MINIKUBE_IP:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [6.0, 2.9, 4.5, 1.5]}'
 
                     echo "=== Predict Virginica ==="
-                    curl -s -X POST http://192.168.49.2:30007/predict \
+                    curl -s -X POST http://$MINIKUBE_IP:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [6.7, 3.1, 5.6, 2.4]}'
+                '''
+            }
+        }
+
+        stage('Test MLflow Serving Endpoint') {
+            steps {
+                sh '''
+                    echo "=== MLflow Serving Test ==="
+                    curl -s -X POST http://127.0.0.1:6000/invocations \
+                        -H "Content-Type: application/json" \
+                        -d '{"inputs": [[5.1, 3.5, 1.4, 0.2]]}'
+
+                    curl -s -X POST http://127.0.0.1:6000/invocations \
+                        -H "Content-Type: application/json" \
+                        -d '{"inputs": [[6.7, 3.1, 5.6, 2.4]]}'
                 '''
             }
         }
@@ -111,7 +151,7 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline Successful — Syed Aun Ali Kazmi | SAP: 70149156 | BSES-A | 6th Semester"
+            echo "Pipeline Successful — Syed Aun Ali Kazmi | SAP: 70149156 | BSES-A | 6th Semester | MLflow URI: http://127.0.0.1:5000"
         }
         failure {
             echo "Pipeline Failed — Check console output"
