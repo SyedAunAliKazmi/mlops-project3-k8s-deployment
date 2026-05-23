@@ -6,12 +6,14 @@ from sklearn.metrics import accuracy_score
 import pandas as pd
 import os
 
-MLFLOW_URI = "sqlite:///mlflow_pipeline.db"
-EXPERIMENT = "k8s-iris-project3"
+# Must point to running MLflow server — NOT sqlite
+os.environ["MLFLOW_TRACKING_URI"] = "http://127.0.0.1:5000"
+MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
+EXPERIMENT_NAME     = "iris-k8s-project3"
 
 def train_model():
-    mlflow.set_tracking_uri(MLFLOW_URI)
-    mlflow.set_experiment(EXPERIMENT)
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(EXPERIMENT_NAME)
     df = pd.read_csv('data/iris.csv')
     X  = df.drop('target', axis=1)
     y  = df['target']
@@ -22,8 +24,12 @@ def train_model():
         model.fit(X_train, y_train)
         acc = accuracy_score(y_test, model.predict(X_test))
         mlflow.log_param("n_estimators", 100)
+        mlflow.log_param("random_state", 42)
         mlflow.log_metric("accuracy", acc)
-        mlflow.sklearn.log_model(model, "model")
+        mlflow.sklearn.log_model(
+            model,
+            name="iris-model"
+        )
         print(f"[TRAIN] Accuracy: {acc} | Run ID: {run.info.run_id}")
         with open("run_id.txt", "w") as f:
             f.write(run.info.run_id)
