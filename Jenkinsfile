@@ -25,6 +25,8 @@ pipeline {
             steps {
                 sh '''
                     rm -f run_id.txt model_version.txt
+                    sudo mkdir -p /tmp/mlflow_artifacts /tmp/mlflow_data
+                    sudo chmod 777 /tmp/mlflow_artifacts /tmp/mlflow_data
                     echo "[CLEANUP] Done"
                 '''
             }
