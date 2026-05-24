@@ -7,9 +7,10 @@ from sklearn.metrics import accuracy_score
 import numpy as np
 import os
 
-os.environ["MLFLOW_TRACKING_URI"] = "http://127.0.0.1:5000"
 MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
 EXPERIMENT_NAME     = "iris-k8s-project3"
+
+os.environ["MLFLOW_TRACKING_URI"] = MLFLOW_TRACKING_URI
 
 def train_model():
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
@@ -28,10 +29,10 @@ def train_model():
         mlflow.log_param("random_state", 42)
         mlflow.log_metric("accuracy", acc)
 
-        # Use artifact_path — works across all MLflow versions
+        # Use name= (MLflow 3.x) instead of artifact_path
         mlflow.sklearn.log_model(
             sk_model=model,
-            artifact_path="iris-model",
+            name="iris-model",
             registered_model_name="iris-k8s-classifier"
         )
         print(f"[TRAIN] Accuracy: {acc} | Run ID: {run.info.run_id}")
