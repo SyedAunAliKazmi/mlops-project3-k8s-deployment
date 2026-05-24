@@ -5,6 +5,7 @@ pipeline {
         MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
         APP_NAME            = "iris-mlops-app"
         NAMESPACE           = "mlops"
+        KUBECONFIG          = "/var/lib/jenkins/.kube/config"
     }
 
     stages {
@@ -25,8 +26,6 @@ pipeline {
             steps {
                 sh '''
                     rm -f run_id.txt model_version.txt
-                    sudo mkdir -p /tmp/mlflow_artifacts /tmp/mlflow_data
-                    sudo chmod 777 /tmp/mlflow_artifacts /tmp/mlflow_data
                     echo "[CLEANUP] Done"
                 '''
             }
