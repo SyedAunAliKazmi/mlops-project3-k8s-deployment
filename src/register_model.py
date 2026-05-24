@@ -11,9 +11,16 @@ def register_model():
     client = MlflowClient()
     with open("run_id.txt") as f:
         run_id = f.read().strip()
-    result  = mlflow.register_model(f"runs:/{run_id}/iris-model", MODEL_NAME)
-    version = result.version
-    print(f"[REGISTER] Model v{version} registered")
+
+    # Get latest version just registered
+    versions = client.get_latest_versions(MODEL_NAME)
+    if versions:
+        version = versions[-1].version
+    else:
+        result  = mlflow.register_model(f"runs:/{run_id}/iris-model", MODEL_NAME)
+        version = result.version
+
+    print(f"[REGISTER] Model v{version} found")
     client.set_registered_model_alias(MODEL_NAME, "Production", version)
     print(f"[REGISTER] Alias 'Production' set on v{version}")
     with open("model_version.txt", "w") as f:
