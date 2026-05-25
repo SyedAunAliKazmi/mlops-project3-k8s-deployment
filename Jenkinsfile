@@ -6,7 +6,6 @@ pipeline {
         APP_NAME            = "iris-mlops-app"
         NAMESPACE           = "mlops"
         KUBECONFIG          = "/var/lib/jenkins/.kube/config"
-        MINIKUBE_IP         = "192.168.49.2"
     }
 
     stages {
@@ -65,6 +64,17 @@ pipeline {
             }
         }
 
+        stage('Reload MLflow Wrapper') {
+            steps {
+                sh '''
+                    echo "Reloading wrapper to pick up new Production model..."
+                    systemctl restart mlflow-wrapper || true
+                    sleep 10
+                    echo "Wrapper reloaded"
+                '''
+            }
+        }
+
         stage('ReplicaSet Deployment - Apply K8s Manifests') {
             steps {
                 sh '''
@@ -112,7 +122,6 @@ pipeline {
             steps {
                 sh '''
                     sleep 15
-
                     echo "=== Health Check ==="
                     curl -s http://192.168.49.2:30007/health
 
