@@ -4,13 +4,15 @@ from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-import numpy as np
 import os
 
-MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-EXPERIMENT_NAME     = "iris-k8s-project3"
+# DagsHub Cloud Configuration
+os.environ["MLFLOW_TRACKING_URI"] = "https://dagshub.com/kazmiaun032/mlops-project3.mlflow"
+os.environ["MLFLOW_TRACKING_USERNAME"] = "kazmiaun032"
+os.environ["MLFLOW_TRACKING_PASSWORD"] = "c80eaea30585653770fe829c28e2382a6cb81651"
 
-os.environ["MLFLOW_TRACKING_URI"] = MLFLOW_TRACKING_URI
+MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
+EXPERIMENT_NAME     = "iris-k8s-project3"
 
 def train_model():
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
@@ -25,17 +27,19 @@ def train_model():
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(X_train, y_train)
         acc = accuracy_score(y_test, model.predict(X_test))
+        
         mlflow.log_param("n_estimators", 100)
         mlflow.log_param("random_state", 42)
         mlflow.log_metric("accuracy", acc)
 
-        # Use name= (MLflow 3.x) instead of artifact_path
+        # Log model to DagsHub
         mlflow.sklearn.log_model(
             sk_model=model,
             name="iris-model",
             registered_model_name="iris-k8s-classifier"
         )
         print(f"[TRAIN] Accuracy: {acc} | Run ID: {run.info.run_id}")
+        
         with open("run_id.txt", "w") as f:
             f.write(run.info.run_id)
 

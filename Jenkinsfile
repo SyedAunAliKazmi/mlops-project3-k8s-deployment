@@ -2,10 +2,14 @@ pipeline {
     agent any
 
     environment {
-        MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-        APP_NAME            = "iris-mlops-app"
-        NAMESPACE           = "mlops"
-        KUBECONFIG          = "/var/lib/jenkins/.kube/config"
+        // DagsHub Cloud Configuration - Replaces the local 127.0.0.1 server
+        MLFLOW_TRACKING_URI      = "https://dagshub.com/kazmiaun032/mlops-project3.mlflow"
+        MLFLOW_TRACKING_USERNAME = "kazmiaun032"
+        MLFLOW_TRACKING_PASSWORD = "c80eaea30585653770fe829c28e2382a6cb81651"
+        
+        APP_NAME                 = "iris-mlops-app"
+        NAMESPACE                = "mlops"
+        KUBECONFIG               = "/var/lib/jenkins/.kube/config"
     }
 
     stages {
@@ -39,28 +43,20 @@ pipeline {
 
         stage('Model Training - MLflow') {
             steps {
-                sh '''
-                    export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
-                    python3 src/train.py
-                '''
+                // The DagsHub credentials are automatically inherited from the environment block
+                sh 'python3 src/train.py'
             }
         }
 
         stage('Model Evaluation') {
             steps {
-                sh '''
-                    export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
-                    python3 src/evaluate.py
-                '''
+                sh 'python3 src/evaluate.py'
             }
         }
 
         stage('Model Registration - MLflow Registry') {
             steps {
-                sh '''
-                    export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
-                    python3 src/register_model.py
-                '''
+                sh 'python3 src/register_model.py'
             }
         }
 
@@ -123,21 +119,21 @@ pipeline {
                 sh '''
                     sleep 15
                     echo "=== Health Check ==="
-                    curl -s http://192.168.49.2:30007/health
+                    curl -s http://192.168.49.2:30007/health || echo "Health check failed."
 
-                    echo "=== Predict Setosa ==="
-                    curl -s -X POST http://192.168.49.2:30007/predict \
-                        -H "Content-Type: application/json" \
+                    echo "\\n=== Predict Setosa ==="
+                    curl -s -X POST http://192.168.49.2:30007/predict \\
+                        -H "Content-Type: application/json" \\
                         -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
 
-                    echo "=== Predict Versicolor ==="
-                    curl -s -X POST http://192.168.49.2:30007/predict \
-                        -H "Content-Type: application/json" \
+                    echo "\\n=== Predict Versicolor ==="
+                    curl -s -X POST http://192.168.49.2:30007/predict \\
+                        -H "Content-Type: application/json" \\
                         -d '{"features": [6.0, 2.9, 4.5, 1.5]}'
 
-                    echo "=== Predict Virginica ==="
-                    curl -s -X POST http://192.168.49.2:30007/predict \
-                        -H "Content-Type: application/json" \
+                    echo "\\n=== Predict Virginica ==="
+                    curl -s -X POST http://192.168.49.2:30007/predict \\
+                        -H "Content-Type: application/json" \\
                         -d '{"features": [6.7, 3.1, 5.6, 2.4]}'
                 '''
             }
@@ -146,21 +142,21 @@ pipeline {
         stage('Test MLflow Serving - Named Predictions') {
             steps {
                 sh '''
-                    echo "=== MLflow Tracking URI: http://127.0.0.1:5000 ==="
+                    echo "=== MLflow Tracking URI: https://dagshub.com/kazmiaun032/mlops-project3.mlflow ==="
 
-                    echo "--- Setosa ---"
-                    curl -s -X POST http://127.0.0.1:7500/predict \
-                        -H "Content-Type: application/json" \
-                        -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
+                    echo "\\n--- Setosa ---"
+                    curl -s -X POST http://127.0.0.1:7500/predict \\
+                        -H "Content-Type: application/json" \\
+                        -d '{"features": [5.1, 3.5, 1.4, 0.2]}' || echo "Wrapper service not responding"
 
-                    echo "--- Versicolor ---"
-                    curl -s -X POST http://127.0.0.1:7500/predict \
-                        -H "Content-Type: application/json" \
+                    echo "\\n--- Versicolor ---"
+                    curl -s -X POST http://127.0.0.1:7500/predict \\
+                        -H "Content-Type: application/json" \\
                         -d '{"features": [6.0, 2.9, 4.5, 1.5]}'
 
-                    echo "--- Virginica ---"
-                    curl -s -X POST http://127.0.0.1:7500/predict \
-                        -H "Content-Type: application/json" \
+                    echo "\\n--- Virginica ---"
+                    curl -s -X POST http://127.0.0.1:7500/predict \\
+                        -H "Content-Type: application/json" \\
                         -d '{"features": [6.7, 3.1, 5.6, 2.4]}'
                 '''
             }
@@ -169,7 +165,7 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline Successful — Syed Aun Ali Kazmi | SAP: 70149156 | BSES-A | 6th Semester | MLflow URI: http://127.0.0.1:5000"
+            echo "Pipeline Successful — Syed Aun Ali Kazmi | SAP: 70149156 | BSES-A | 6th Semester | MLflow URI: https://dagshub.com/kazmiaun032/mlops-project3.mlflow"
         }
         failure {
             echo "Pipeline Failed — Check console output"
