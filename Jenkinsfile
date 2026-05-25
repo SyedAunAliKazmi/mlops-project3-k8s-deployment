@@ -6,6 +6,7 @@ pipeline {
         APP_NAME            = "iris-mlops-app"
         NAMESPACE           = "mlops"
         KUBECONFIG          = "/var/lib/jenkins/.kube/config"
+        MINIKUBE_IP         = "192.168.49.2"
     }
 
     stages {
@@ -110,24 +111,23 @@ pipeline {
         stage('Test API - K8s Endpoint') {
             steps {
                 sh '''
-                    sleep 20
-                    MINIKUBE_IP=$(minikube ip)
+                    sleep 15
 
                     echo "=== Health Check ==="
-                    curl -s http://$MINIKUBE_IP:30007/health
+                    curl -s http://192.168.49.2:30007/health
 
                     echo "=== Predict Setosa ==="
-                    curl -s -X POST http://$MINIKUBE_IP:30007/predict \
+                    curl -s -X POST http://192.168.49.2:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
 
                     echo "=== Predict Versicolor ==="
-                    curl -s -X POST http://$MINIKUBE_IP:30007/predict \
+                    curl -s -X POST http://192.168.49.2:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [6.0, 2.9, 4.5, 1.5]}'
 
                     echo "=== Predict Virginica ==="
-                    curl -s -X POST http://$MINIKUBE_IP:30007/predict \
+                    curl -s -X POST http://192.168.49.2:30007/predict \
                         -H "Content-Type: application/json" \
                         -d '{"features": [6.7, 3.1, 5.6, 2.4]}'
                 '''
@@ -137,8 +137,7 @@ pipeline {
         stage('Test MLflow Serving - Named Predictions') {
             steps {
                 sh '''
-                    echo "=== MLflow Wrapper API - Iris Class Names ==="
-                    echo "MLflow Tracking URI: http://127.0.0.1:5000"
+                    echo "=== MLflow Tracking URI: http://127.0.0.1:5000 ==="
 
                     echo "--- Setosa ---"
                     curl -s -X POST http://127.0.0.1:7500/predict \
