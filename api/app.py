@@ -1,34 +1,50 @@
 from flask import Flask, request, jsonify
-import mlflow.sklearn
+import mlflow.pyfunc
 import os
+import time
 
 app = Flask(__name__)
 
-# Registry alias for Production (Fulfills PDF Task 5.2)
-MODEL_URI = "models:/iris-k8s-classifier@Production"
+# Logic: Pull from DagsHub Cloud
+MODEL_NAME = "iris-k8s-classifier"
+STAGE = "Production"
+TRACKING_URI = "https://dagshub.com/kazmiaun032/mlops-project3.mlflow"
+
+mlflow.set_tracking_uri(TRACKING_URI)
+
 model = None
 
 def load_model():
     global model
-    try:
-        mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI"))
-        model = mlflow.sklearn.load_model(MODEL_URI)
-        print("[API] Successfully loaded Production model from DagsHub!")
-    except Exception as e:
-        print(f"[API ERROR] Model not found yet. Awaiting Jenkins pipeline run. Error: {e}")
+    model_uri = f"models:/{MODEL_NAME}/{STAGE}"
+    print(f"Attempting to load model from: {model_uri}")
+    for i in range(5):  # Try 5 times
+        try:
+            model = mlflow.pyfunc.load_model(model_uri)
+            print("Model loaded successfully!")
+            return True
+        except Exception as e:
+            print(f"Attempt {i+1} failed: {e}")
+            time.sleep(10)
+    return False
+
+# Initial load
+load_model()
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if model is None: 
-        return jsonify({"error": "Model not deployed yet."}), 503
-    data = request.json.get('features')
-    prediction = model.predict([data])
+    if model is None:
+        # Try one last time to load if it failed at startup
+        if not load_model():
+            return jsonify({"error": "Model not deployed yet. Check DagsHub Production stage."}), 503
+    
+    data = request.get_json()
+    prediction = model.predict([data['features']])
     return jsonify({"prediction": int(prediction[0])})
 
-@app.route('/health')
+@app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy", "model_ready": model is not None}), 200
+    return jsonify({"status": "healthy", "model_loaded": model is not None})
 
 if __name__ == '__main__':
-    load_model()
     app.run(host='0.0.0.0', port=7000)

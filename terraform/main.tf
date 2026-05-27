@@ -26,34 +26,42 @@ resource "kubernetes_deployment" "iris_api" {
         container {
           name              = "iris-api"
           image             = var.image_name
-          image_pull_policy = "Always"  # CRITICAL FIX: Forces Minikube to download from Docker Hub
-          
+          image_pull_policy = "Always"
+
           port { container_port = var.app_port }
-          
+
           env {
             name  = "MLFLOW_TRACKING_URI"
-            value = var.mlflow_uri
+            value = "https://dagshub.com/kazmiaun032/mlops-project3.mlflow"
           }
           env {
             name  = "MLFLOW_TRACKING_USERNAME"
-            value = var.mlflow_username
+            value = "kazmiaun032"
           }
           env {
             name  = "MLFLOW_TRACKING_PASSWORD"
-            value = var.mlflow_password
+            value = "c80eaea30585653770fe829c28e2382a6cb81651"
           }
-
           resources {
             requests = { memory = "128Mi", cpu = "250m" }
             limits   = { memory = "256Mi", cpu = "500m" }
           }
+          
+          # SYNTAX FIX: Expanded into proper HCL blocks
           liveness_probe {
-            http_get { path = "/health"; port = var.app_port }
+            http_get {
+              path = "/health"
+              port = var.app_port
+            }
             initial_delay_seconds = 30
             period_seconds        = 10
           }
+          
           readiness_probe {
-            http_get { path = "/health"; port = var.app_port }
+            http_get {
+              path = "/health"
+              port = var.app_port
+            }
             initial_delay_seconds = 5
             period_seconds        = 5
           }
