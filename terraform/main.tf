@@ -18,8 +18,8 @@ resource "kubernetes_deployment" "iris_api" {
     labels    = { app = var.app_name }
   }
   spec {
-    # REQUIREMENT 7.1: Explicitly set to 3 replicas for high availability
-    replicas = 3 
+    # CRITICAL: Ensures exactly 3 replicas are running
+    replicas = var.replica_count
     
     selector { match_labels = { app = var.app_name } }
     template {
@@ -32,18 +32,18 @@ resource "kubernetes_deployment" "iris_api" {
 
           port { container_port = var.app_port }
 
-          # INSTRUCTOR REQUIREMENT: MLflow Tracking URI for cloud persistence
+          # CRITICAL: Injects DagsHub cloud credentials into K8s Pods
           env {
             name  = "MLFLOW_TRACKING_URI"
-            value = "https://dagshub.com/kazmiaun032/mlops-project3.mlflow"
+            value = var.mlflow_uri
           }
           env {
             name  = "MLFLOW_TRACKING_USERNAME"
-            value = "kazmiaun032"
+            value = var.mlflow_username
           }
           env {
             name  = "MLFLOW_TRACKING_PASSWORD"
-            value = "c80eaea30585653770fe829c28e2382a6cb81651"
+            value = var.mlflow_password
           }
 
           resources {
@@ -91,7 +91,6 @@ resource "kubernetes_service" "iris_api" {
   }
 }
 
-# REQUIREMENT 7.9: Nginx Ingress for Load Balancing
 resource "kubernetes_ingress_v1" "iris_api" {
   depends_on = [kubernetes_service.iris_api]
   metadata {
