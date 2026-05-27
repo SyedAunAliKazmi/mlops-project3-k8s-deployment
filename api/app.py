@@ -5,44 +5,49 @@ import time
 
 app = Flask(__name__)
 
-# Logic: Pull from DagsHub Cloud
+# Iris Species Mapping Logic
+SPECIES_MAP = {0: "setosa", 1: "versicolor", 2: "virginica"}
+
+# Logic: Pull from DagsHub Cloud for WSL-off persistence
 MODEL_NAME = "iris-k8s-classifier"
 STAGE = "Production"
 TRACKING_URI = "https://dagshub.com/kazmiaun032/mlops-project3.mlflow"
 
 mlflow.set_tracking_uri(TRACKING_URI)
-
 model = None
 
 def load_model():
     global model
     model_uri = f"models:/{MODEL_NAME}/{STAGE}"
-    print(f"Attempting to load model from: {model_uri}")
-    for i in range(5):  # Try 5 times
+    for i in range(5):
         try:
             model = mlflow.pyfunc.load_model(model_uri)
-            print("Model loaded successfully!")
             return True
         except Exception as e:
-            print(f"Attempt {i+1} failed: {e}")
+            print(f"Load attempt {i+1} failed. Retrying...")
             time.sleep(10)
     return False
 
-# Initial load
 load_model()
 
 @app.route('/predict', methods=['POST'])
 def predict():
     if model is None:
-        # Try one last time to load if it failed at startup
         if not load_model():
-            return jsonify({"error": "Model not deployed yet. Check DagsHub Production stage."}), 503
+            return jsonify({"error": "Model not deployed"}), 503
     
     data = request.get_json()
-    prediction = model.predict([data['features']])
-    return jsonify({"prediction": int(prediction[0])})
+    prediction_int = int(model.predict([data['features']])[0])
+    
+    # Socratic Fix: Map integer to Name
+    species_name = SPECIES_MAP.get(prediction_int, "unknown")
+    
+    return jsonify({
+        "prediction_index": prediction_int,
+        "species": species_name
+    })
 
-@app.route('/health', methods=['GET'])
+@app.route('/health', netthods=['GET'])
 def health():
     return jsonify({"status": "healthy", "model_loaded": model is not None})
 
