@@ -1,9 +1,10 @@
 import mlflow
 import mlflow.sklearn
+import os
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-import os
+from sklearn.metrics import accuracy_score
 
 def train_model():
     mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI"))
@@ -16,16 +17,17 @@ def train_model():
         model = RandomForestClassifier(n_estimators=100)
         model.fit(X_train, y_train)
         
-        # We use "model" as the path, and register it immediately
-        mlflow.sklearn.log_model(
-            sk_model=model, 
-            artifact_path="model", 
-            registered_model_name="iris-k8s-classifier"
-        )
+        # Calculate and log the metric instantly to the database
+        preds = model.predict(X_test)
+        acc = accuracy_score(y_test, preds)
+        mlflow.log_metric("accuracy", acc)
+        
+        # Log the heavy artifact in the background
+        mlflow.sklearn.log_model(model, "model", registered_model_name="iris-k8s-classifier")
         
         with open("run_id.txt", "w") as f:
             f.write(run.info.run_id)
-        print(f"[TRAIN] Run ID: {run.info.run_id}")
+        print(f"[TRAIN] Run ID: {run.info.run_id} | Accuracy: {acc}")
 
 if __name__ == "__main__":
     train_model()
